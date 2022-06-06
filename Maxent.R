@@ -107,6 +107,5 @@ for(i in 1:length(proyec_presente)){
     png(file = paste0("C:/Users/Tabby/Documents/Modelos/Proyecciones/Presente/R/01/", especies_corr[i], "/response_", especies_corr[i], ".png"),
         width=1500, height=1000)
     plot(proyec_presente[[i]])
-    points(proyec_presente[[i]])
     dev.off()
 }
