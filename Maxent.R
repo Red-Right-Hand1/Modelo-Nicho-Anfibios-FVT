@@ -42,10 +42,12 @@ capasEjeFuturo <- stack(rasterEjeFuturo)
 capasMXPresente <- stack(rasterMXPresente)
 
 ##Se delimitan los puntos de fondo
-set.seed(1)
-bp <- sampleRandom(x = capasMXPresente,
-                   size = 100000,
-                   na.rm = T,
+set.seed(1) ##Para indicar el estado del generador de números "aleatorios"
+bp <- sampleRandom(x = capasMXPresente, ##Se define con la extensión de la "M",
+                                        ##es decir, la región geográfica con la
+                                        ##se entrenará a los modelos
+                   size = 100000, ##Acorde al territorio seleccionado (país)
+                   na.rm = T, 
                    sp = T)
 
 ##Se carga el archivo csv de ocurrencias
@@ -53,24 +55,28 @@ ocurrencias <- read.csv(
     "C:/Users/Tabby/Documents/Modelos/Ocurrencias/143_MX.xlsx - Hoja1.csv")
 
 ##Un data frame para cada especie es creada
-especies <- count(ocurrencias[,1])[c(47:91),1]
-especies_corr <- grep(
+especies <- count(ocurrencias[,1])[c(47:91),1] ##Se seleccionan las especies 
+                                               ##elejidas
+especies_corr <- grep( ##Las especies que tengan menos de 10 observaciones son 
+                       ##eliminadas
     especies, pattern = 
         "Eleutherodactylus dilatus|Eleutherodactylus saxatilis|Isthmura naucampatepetl|Eleutherodactylus grandis|Eleutherodactylus maurus",
     invert = TRUE, value = TRUE)
-lista_especies = list()
+lista_especies = list() 
 for(i in 1:length(especies_corr)){
-    numero_fila <- which(ocurrencias$ESPECIE == especies_corr[i])
+    numero_fila <- which(ocurrencias$ESPECIE == especies_corr[i]) ##Todas las especies
+                                            ##con más de 10 observaciones se seleccionan
     df <- ocurrencias[c(numero_fila[1]: numero_fila[length(numero_fila)]), c(2,3)]
-    lista_especies[[i]] <- df
+    lista_especies[[i]] <- df ##Cada df es guardado en la lista correspondiente
 }
-names(lista_especies) <- especies_corr
+names(lista_especies) <- especies_corr ##Se nombra cada df acorde a la especie que 
+                                       ##le corresponde
 
 ##Se remueven las presencias duplicadas
 unic_list <- list()
 for(i in 1:length(lista_especies)) {
-    dupl <- duplicated(lista_especies[[i]][c("LONGITUD", "LATITUD")])
-    pres_unic <- lista_especies[[i]][!dupl,]
+    dupl <- duplicated(lista_especies[[i]][c("LONGITUD", "LATITUD")]) 
+    pres_unic <- lista_especies[[i]][!dupl,] 
     unic_list[[i]] <- pres_unic
 }
 
@@ -95,14 +101,17 @@ for(i in 1:length(unic_list)) {
 ##Se generan datos "espaciales" a las ocurrencias, y se agrega el sistema de
 ##referencia de coordenadas
 geo_pres <- list()
-coord_ref <- CRS("+init=epsg:4326") 
+coord_ref <- CRS("+init=epsg:4326") ##Se guarda el sistema de georeferencia
 for(i in 1:length(pres_final)) {
     unic <- pres_final[[i]]
     name <- as.data.frame(rep(especies_corr[[i]], 
                               nrow(unic)))
     spat_point <- SpatialPointsDataFrame(coords = unic, 
                                          data = name, 
-                                         proj4string = coord_ref)
+                                         proj4string = coord_ref) ##Cada presencia
+                                                ##por especies es transormada 
+                                                ##de acuerdo al sistema de geo-
+                                                ##rreferencia 
     geo_pres[[i]] <- spat_point
 }
 
@@ -287,27 +296,6 @@ tabla1 <- data.frame("Especie" = especies_corr,
 tab_df(tabla1, 
        title = "Tabla 1. Lista de especies utilizadas en la generacion de modelos de distribucion de nicho, presentando los valores de AUC (area bajo la curva) para la evaluacion del rendimiento de los modelos. Se comparan los AUC para los sets de prueba y de entrenamiento del modelo.",
        alternate.rows = T) 
-
-##El nombre de cada variable ambiental utilizada en el modelo de predicción
-bio_var <- c("1 Temperatura media anual", 
-             "2 Rango diurno medio", 
-             "3 Isotermalidad",
-             "4 Estacionalidad de temperatura (desviación estándar)",
-             "5 Temperatura máxima del mes más cálido",
-             "6 Temperatrua mínima del mes más frío",
-             "7 Rango anual de la temperatura",
-             "8 Temperatura media del cuarto más húmedo",
-             "9 Temperatura media del cuarto más seco",
-             "10 Temperatura media del cuarto más cálido",
-             "11 Temperatura media del cuarto más frio",
-             "12 Precipitación anual",
-             "13 Precipitación del mes más húmedo",
-             "14 Precipitación del mes más seco",
-             "15 Estacionalidad de temperatura (coeficiente de variación)",
-             "16 Precipitación del cuarto más húmedo",
-             "17Precipitación del cuarto más seco",
-             "18 Precipitación del cuarto más cálido",
-             "19 Precipitación del cuarto más frío")
 
 ##Se obtiene la importancia para cada variable entre todos los modelos
 capas_contr <- data.frame("Capa" = c(1:19))
