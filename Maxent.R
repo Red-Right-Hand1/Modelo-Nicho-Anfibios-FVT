@@ -8,10 +8,19 @@ library(rgeos)
 library(rgdal)
 library(sjPlot)
 library(stargazer)
+library(ggplot2)
+
+###LIMPIEZA DE DATOS
+
+##Directorio de trabajo
+setwd("C:/Users/Tabby/Documents/Modelos")
+save.image(file = "environment2.RData")
+load("environment.RData")
+load("environment2.RData")
 
 ##Se crea una función para la extracción de los datos Raster para cada region
 ##y cada tiempo. Arroja una lista con los datos Raster
-rasUpload <- function(region, tiempo){ ##region = "Eje" o "MX"; tiempo = "PRESENTE" o "FUTURO"
+rasUpload <- function(region, tiempo) { ##region = "Eje" o "MX"; tiempo = "PRESENTE" o "FUTURO"
     wd = paste0(
         "C:/Users/Tabby/Documents/Modelos/Capas/", 
         tiempo, "/", region, "_30s/ASC") ##Se genera el directorio para buscar
@@ -238,6 +247,61 @@ for(i in 1:length(eval_train_list)) {
     umbral[i] <- (umbraltrain_max + umbraltest_max)/2
 }
 
+##Se generan áreas de presencia y ausencia utilizando el umbral calculado para
+##cada modelo por especie (ya no se toma una probabilidad, sino que se vuelve
+##en valores binarios de ausencia y presencia). Para esto, se crea una función:
+pres_abs <- function(Raster, sp) { ##Raster es la proyección que será calculada, sp es el número de especie que está siendo tratada
+    points_df <- as.data.frame(rasterToPoints(Raster)) ##Se transforma a puntos el archivo raster
+    pres_df <- points_df[points_df[,3] > umbral[sp],] ##Se toman en cuenta sólo los puntos arriba del umbral
+    raster_pres <- rasterFromXYZ(pres_df) ##Los puntos son transformados a raster de nuevo
+    crs(raster_pres) <- coord_ref ##El sistema de coordenadas se agrega al raster
+    raster_area <- area(raster_pres, na.rm = TRUE, weights = FALSE) ##Se obtiene el área del raster
+    raster_area <- raster_area[!is.na(raster_area)] ##Los NA son eliminados
+    Area <- length(raster_area)*median(raster_area) ##El área en km2 es calculada
+    raslist <- list("Area" = round(Area, digits = 1), "Raster" = raster_pres) ##Lista que contiene el valor numérico del área y el raster de presencias
+    return(raslist) ##Devuelve la lista
+}
+
+##Las áreas de presencia son calculadas para las proyecciones al presente y 
+##futuro. También el raster de presencias es almacenado
+area_presente <- numeric()
+area_futuro <- numeric()
+pres_pres <- list()
+pres_fut <- list()
+for(i in 1:length(proyec_presente)) {
+    ras_pres <- proyec_presente[[i]]
+    ras_fut <- proyec_futuro[[i]]
+    area_pres <- tryCatch( ##En algunas proyecciones, tomando en cuenta el umbral, practicamente 
+                        ##no existe distribución de la especie, por lo que se toma el error generado y se asigna "0"
+        error = function(cnd) {
+            area_pres <- 0
+        },
+        area_pres <- pres_abs(ras_pres, i)$Area
+    )
+    rast_pres <- tryCatch(
+        error = function(cnd) {
+            rast_pres <- 0
+        },
+        rast_pres <- pres_abs(ras_pres, i)$Raster
+    )
+    area_fut <- tryCatch(
+        error = function(cnd) {
+            area_fut <- 0
+        },
+        area_fut <- pres_abs(ras_fut, i)$Area
+    )
+    rast_fut <- tryCatch(
+        error = function(cnd) {
+            rast_pres <- 0
+        },
+        rast_fut <- pres_abs(ras_fut, i)$Raster
+    )
+    area_presente[i] <- area_pres
+    area_futuro[i] <- area_fut
+    pres_pres[[i]] <- rast_pres
+    pres_fut[[i]] <- rast_fut
+}
+
 ##Los mapas de predicción son guardados en las carpetas correspondientes
 wd_presente <- "C:/Users/Tabby/Documents/Modelos/Proyecciones/Presente/"
 wd_futuro <- "C:/Users/Tabby/Documents/Modelos/Proyecciones/Fututo/"
@@ -251,27 +315,57 @@ for(i in 1:length(proyec_presente)){
     dir.create(paste0(proy_presente_wd, especies_corr[i]))
     writeRaster(proyec_presente[[i]],
                 filename = paste0(proy_presente_wd, especies_corr[i], 
-                                  "/response_", 
+                                  "/response_present_", 
                                   especies_corr[i], ".asc"),
                 format = "ascii",
                 bylayer = TRUE,
                 overwrite = T)
-    png(file = paste0(proy_presente_wd, especies_corr[i], "/response_", 
+    png(file = paste0(proy_presente_wd, especies_corr[i], "/response_present_", 
                       especies_corr[i], ".png"),
         width = 1500, height = 1000)
     plot(proyec_presente[[i]])
+    if(class(pres_pres[[i]][1] == "RasterLayer")) {
+        writeRaster(pres_pres[[i]],
+                    filename = paste0(proy_presente_wd, especies_corr[i], 
+                                      "/distr_present", 
+                                      especies_corr[i], ".asc"),
+                    format = "ascii",
+                    bylayer = TRUE,
+                    overwrite = T)
+        png(file = paste0(proy_presente_wd, especies_corr[i], "/distr_present_", 
+                          especies_corr[i], ".png"),
+            width = 1500, height = 1000)
+        plot(pres_pres[[i]])
+    }, ifelse(class(pres_pres[[i]][1] == "numeric")) {
+        next
+    }
     dir.create(paste0(proy_futuro_wd, especies_corr[i]))
     writeRaster(proyec_futuro[[i]],
                 filename = paste0(proy_futuro_wd, especies_corr[i], 
-                                  "/response_", 
+                                  "/response_fut_", 
                                   especies_corr[i], ".asc"),
                 format = "ascii",
                 bylayer = TRUE,
                 overwrite = T)
-    png(file = paste0(proy_futuro_wd, especies_corr[i], "/response_", 
+    png(file = paste0(proy_futuro_wd, especies_corr[i], "/response_fut_", 
                       especies_corr[i], ".png"),
         width = 1500, height = 1000)
     plot(proyec_futuro[[i]])
+    if(class(pres_fut[[i]][1] == "RasterLayer")) {
+        writeRaster(pres_fut[[i]],
+                    filename = paste0(proy_presente_wd, especies_corr[i], 
+                                      "/distr_fut_", 
+                                      especies_corr[i], ".asc"),
+                    format = "ascii",
+                    bylayer = TRUE,
+                    overwrite = T)
+        png(file = paste0(proy_presente_wd, especies_corr[i], "/distr_fut_", 
+                          especies_corr[i], ".png"),
+            width = 1500, height = 1000)
+        plot(pres_fut[[i]])
+    } ifelse(class(pres_fut[[i]][1] == "numeric")) {
+        next
+    }
     dev.off()
 }
 
@@ -294,8 +388,29 @@ tabla1 <- data.frame("Especie" = especies_corr,
 
 ##Se genera la tabla 1
 tab_df(tabla1, 
-       title = "Tabla 1. Lista de especies utilizadas en la generacion de modelos de distribucion de nicho, presentando los valores de AUC (area bajo la curva) para la evaluacion del rendimiento de los modelos. Se comparan los AUC para los sets de prueba y de entrenamiento del modelo.",
-       alternate.rows = T) 
+       alternate.rows = T,
+       col.header = c("Especie", "AUC entrenamiento", "AUC prueba")) 
+
+##El nombre de cada variable ambiental utilizada en el modelo de predicción
+bio_var <- c("1 Temperatura media anual", 
+             "2 Rango diurno medio", 
+             "3 Isotermalidad",
+             "4 Estacionalidad de temperatura (desviación estándar)",
+             "5 Temperatura máxima del mes más cálido",
+             "6 Temperatrua mínima del mes más frío",
+             "7 Rango anual de la temperatura",
+             "8 Temperatura media del cuarto más húmedo",
+             "9 Temperatura media del cuarto más seco",
+             "10 Temperatura media del cuarto más cálido",
+             "11 Temperatura media del cuarto más frio",
+             "12 Precipitación anual",
+             "13 Precipitación del mes más húmedo",
+             "14 Precipitación del mes más seco",
+             "15 Estacionalidad de temperatura (coeficiente de variación)",
+             "16 Precipitación del cuarto más húmedo",
+             "17Precipitación del cuarto más seco",
+             "18 Precipitación del cuarto más cálido",
+             "19 Precipitación del cuarto más frío")
 
 ##Se obtiene la importancia para cada variable entre todos los modelos
 capas_contr <- data.frame("Capa" = c(1:19))
@@ -348,3 +463,14 @@ tabla2 <- data.frame("Capa" = c("Bio 1", "Bio 2", "Bio 3", "Bio 4", "Bio 5",
                       "Maximo" = max_val) 
 tab_df(tabla2, 
        alternate.rows = T) 
+
+##Se genera un data frame donde se colocan las áreas de presencia para las 
+##proyecciones por cada especie
+tabla3 <- data.frame("Especie" = especies_corr, 
+                        "Area presente (km2)" = area_presente,
+                        "Area futuro (km2)" = area_futuro)
+
+##La tabla 3 es generada
+tab_df(tabla3,
+       alternate.rows = T,
+       col.header = c("Especie", "Area presente (km2)", "Area futuro (km2)"))
