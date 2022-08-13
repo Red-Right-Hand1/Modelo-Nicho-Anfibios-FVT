@@ -299,6 +299,11 @@ for(i in 1:length(proyec_presente)) {
     pres_fut[[i]] <- rast_fut
 }
 
+##Se realiza una prueba de U de Mann-Whitney para saber si existe una diferencia
+##significativa entre las áreas de distribución para las proyecciones
+dif_test <- wilcox.test(area_presente, area_futuro, paired = TRUE)
+dif_test$p.value ##P-value: 0.01302583 < 0.05. Los datos presentan diferencias
+
 ##Los mapas de predicción son guardados en las carpetas correspondientes
 wd_presente <- "C:/Users/Tabby/Documents/Modelos/Proyecciones/Presente/"
 wd_futuro <- "C:/Users/Tabby/Documents/Modelos/Proyecciones/Fututo/"
@@ -386,7 +391,6 @@ for(i in 1:length(eval_train_list)) {
 tabla1 <- data.frame("Especie" = especies_corr, 
                      "AUC entrenamiento" = AUC_train, 
                      "AUC prueba" = AUC_test)
-
 ##Se genera la tabla 1
 tab_df(tabla1, 
        alternate.rows = T,
@@ -424,33 +428,13 @@ graph1 +
     coord_cartesian(xlim = c(1.1, 26)) +
     labs(x = "Media de contribución para modelos", y = "Capa ambiental")
 
-##Se obtienen los valores más altos y más bajos de contribución para cada capa
-##ambiental y se tabulan
-max_val <- numeric()
-min_val <- numeric()
-for(i in 1:nrow(capas_contr)) {
-    x_max <- max(capas_contr[i,])
-    x_min <- min(capas_contr[i,])
-    max_val[i] <- x_max
-    min_val[i] <- x_min
-}
-tabla2 <- data.frame("Capa" = c("Bio 1", "Bio 2", "Bio 3", "Bio 4", "Bio 5", 
-                                "Bio 6", "Bio 7", "Bio 8", "Bio 9", "Bio 10",
-                                "Bio 11", "Bio 12", "Bio 13", "Bio 14", 
-                                "Bio 15", "Bio 16", "Bio 17", "Bio 18",
-                                "Bio 19"), 
-                     "Minimo" = min_val,
-                     "Maximo" = max_val) 
-tab_df(tabla2, 
-       alternate.rows = T) 
-
 ##Se genera un data frame donde se colocan las áreas de presencia para las 
 ##proyecciones por cada especie
-tabla3 <- data.frame("Especie" = especies_corr, 
+tabla2 <- data.frame("Especie" = especies_corr, 
                      "Area presente (km2)" = area_presente,
                      "Area futuro (km2)" = area_futuro)
 
 ##La tabla 3 es generada
-tab_df(tabla3,
+tab_df(tabla2,
        alternate.rows = T,
        col.header = c("Especie", "Area presente (km2)", "Area futuro (km2)"))
