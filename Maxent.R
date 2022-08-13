@@ -14,9 +14,6 @@ library(ggplot2)
 
 ##Directorio de trabajo
 setwd("C:/Users/Tabby/Documents/Modelos")
-save.image(file = "environment2.RData")
-load("environment.RData")
-load("environment2.RData")
 
 ##Se crea una función para la extracción de los datos Raster para cada region
 ##y cada tiempo. Arroja una lista con los datos Raster
@@ -53,8 +50,8 @@ capasMXPresente <- stack(rasterMXPresente)
 ##Se delimitan los puntos de fondo
 set.seed(1) ##Para indicar el estado del generador de números "aleatorios"
 bp <- sampleRandom(x = capasMXPresente, ##Se define con la extensión de la "M",
-                                        ##es decir, la región geográfica con la
-                                        ##se entrenará a los modelos
+                   ##es decir, la región geográfica con la
+                   ##se entrenará a los modelos
                    size = 100000, ##Acorde al territorio seleccionado (país)
                    na.rm = T, 
                    sp = T)
@@ -65,21 +62,21 @@ ocurrencias <- read.csv(
 
 ##Un data frame para cada especie es creada
 especies <- count(ocurrencias[,1])[c(47:91),1] ##Se seleccionan las especies 
-                                               ##elejidas
+##elejidas
 especies_corr <- grep( ##Las especies que tengan menos de 10 observaciones son 
-                       ##eliminadas
+    ##eliminadas
     especies, pattern = 
         "Eleutherodactylus dilatus|Eleutherodactylus saxatilis|Isthmura naucampatepetl|Eleutherodactylus grandis|Eleutherodactylus maurus",
     invert = TRUE, value = TRUE)
 lista_especies = list() 
 for(i in 1:length(especies_corr)){
     numero_fila <- which(ocurrencias$ESPECIE == especies_corr[i]) ##Todas las especies
-                                            ##con más de 10 observaciones se seleccionan
+    ##con más de 10 observaciones se seleccionan
     df <- ocurrencias[c(numero_fila[1]: numero_fila[length(numero_fila)]), c(2,3)]
     lista_especies[[i]] <- df ##Cada df es guardado en la lista correspondiente
 }
 names(lista_especies) <- especies_corr ##Se nombra cada df acorde a la especie que 
-                                       ##le corresponde
+##le corresponde
 
 ##Se remueven las presencias duplicadas
 unic_list <- list()
@@ -118,9 +115,9 @@ for(i in 1:length(pres_final)) {
     spat_point <- SpatialPointsDataFrame(coords = unic, 
                                          data = name, 
                                          proj4string = coord_ref) ##Cada presencia
-                                                ##por especies es transormada 
-                                                ##de acuerdo al sistema de geo-
-                                                ##rreferencia 
+    ##por especies es transormada 
+    ##de acuerdo al sistema de geo-
+    ##rreferencia 
     geo_pres[[i]] <- spat_point
 }
 
@@ -272,7 +269,7 @@ for(i in 1:length(proyec_presente)) {
     ras_pres <- proyec_presente[[i]]
     ras_fut <- proyec_futuro[[i]]
     area_pres <- tryCatch( ##En algunas proyecciones, tomando en cuenta el umbral, practicamente 
-                        ##no existe distribución de la especie, por lo que se toma el error generado y se asigna "0"
+        ##no existe distribución de la especie, por lo que se toma el error generado y se asigna "0"
         error = function(cnd) {
             area_pres <- 0
         },
@@ -308,7 +305,7 @@ wd_futuro <- "C:/Users/Tabby/Documents/Modelos/Proyecciones/Fututo/"
 proy_presente_wd <- paste0(wd_presente,
                            as.character(length(list.files(wd_presente)) + 1), "/")
 proy_futuro_wd <- paste0(wd_futuro,
-                           as.character(length(list.files(wd_futuro)) + 1), "/")
+                         as.character(length(list.files(wd_futuro)) + 1), "/")
 dir.create(proy_presente_wd)
 dir.create(proy_futuro_wd)
 for(i in 1:length(proyec_presente)){
@@ -324,7 +321,8 @@ for(i in 1:length(proyec_presente)){
                       especies_corr[i], ".png"),
         width = 1500, height = 1000)
     plot(proyec_presente[[i]])
-    if(class(pres_pres[[i]][1] == "RasterLayer")) {
+    dev.off()
+    if(class(pres_pres[[i]]) == "RasterLayer") {
         writeRaster(pres_pres[[i]],
                     filename = paste0(proy_presente_wd, especies_corr[i], 
                                       "/distr_present", 
@@ -336,9 +334,12 @@ for(i in 1:length(proyec_presente)){
                           especies_corr[i], ".png"),
             width = 1500, height = 1000)
         plot(pres_pres[[i]])
-    }, ifelse(class(pres_pres[[i]][1] == "numeric")) {
+    } else if(class(pres_pres[[i]]) == "numeric") {
         next
     }
+    dev.off()
+}
+for(i in 1:length(proyec_futuro)) {
     dir.create(paste0(proy_futuro_wd, especies_corr[i]))
     writeRaster(proyec_futuro[[i]],
                 filename = paste0(proy_futuro_wd, especies_corr[i], 
@@ -351,19 +352,19 @@ for(i in 1:length(proyec_presente)){
                       especies_corr[i], ".png"),
         width = 1500, height = 1000)
     plot(proyec_futuro[[i]])
-    if(class(pres_fut[[i]][1] == "RasterLayer")) {
+    if(class(pres_fut[[i]]) == "RasterLayer") {
         writeRaster(pres_fut[[i]],
-                    filename = paste0(proy_presente_wd, especies_corr[i], 
+                    filename = paste0(proy_futuro_wd, especies_corr[i], 
                                       "/distr_fut_", 
                                       especies_corr[i], ".asc"),
                     format = "ascii",
                     bylayer = TRUE,
                     overwrite = T)
-        png(file = paste0(proy_presente_wd, especies_corr[i], "/distr_fut_", 
+        png(file = paste0(proy_futuro_wd, especies_corr[i], "/distr_fut_", 
                           especies_corr[i], ".png"),
             width = 1500, height = 1000)
         plot(pres_fut[[i]])
-    } ifelse(class(pres_fut[[i]][1] == "numeric")) {
+    } else if(class(pres_fut[[i]]) == "numeric") {
         next
     }
     dev.off()
@@ -391,27 +392,6 @@ tab_df(tabla1,
        alternate.rows = T,
        col.header = c("Especie", "AUC entrenamiento", "AUC prueba")) 
 
-##El nombre de cada variable ambiental utilizada en el modelo de predicción
-bio_var <- c("1 Temperatura media anual", 
-             "2 Rango diurno medio", 
-             "3 Isotermalidad",
-             "4 Estacionalidad de temperatura (desviación estándar)",
-             "5 Temperatura máxima del mes más cálido",
-             "6 Temperatrua mínima del mes más frío",
-             "7 Rango anual de la temperatura",
-             "8 Temperatura media del cuarto más húmedo",
-             "9 Temperatura media del cuarto más seco",
-             "10 Temperatura media del cuarto más cálido",
-             "11 Temperatura media del cuarto más frio",
-             "12 Precipitación anual",
-             "13 Precipitación del mes más húmedo",
-             "14 Precipitación del mes más seco",
-             "15 Estacionalidad de temperatura (coeficiente de variación)",
-             "16 Precipitación del cuarto más húmedo",
-             "17Precipitación del cuarto más seco",
-             "18 Precipitación del cuarto más cálido",
-             "19 Precipitación del cuarto más frío")
-
 ##Se obtiene la importancia para cada variable entre todos los modelos
 capas_contr <- data.frame("Capa" = c(1:19))
 for(i in 1:length(modelo_sp)) {
@@ -436,8 +416,8 @@ mean_contr <- data.frame("Capa" = c("Bio 1", "Bio 2", "Bio 3", "Bio 4", "Bio 5",
 
 ##Se genera la gráfica 1
 graph1 <- ggplot(data = mean_contr, 
-            aes(y = reorder(Capa, Promedio.por.modelo), 
-                x = Promedio.por.modelo))
+                 aes(y = reorder(Capa, Promedio.por.modelo), 
+                     x = Promedio.por.modelo))
 graph1 + 
     geom_col() + 
     theme_bw() + 
@@ -455,20 +435,20 @@ for(i in 1:nrow(capas_contr)) {
     min_val[i] <- x_min
 }
 tabla2 <- data.frame("Capa" = c("Bio 1", "Bio 2", "Bio 3", "Bio 4", "Bio 5", 
-                                 "Bio 6", "Bio 7", "Bio 8", "Bio 9", "Bio 10",
-                                 "Bio 11", "Bio 12", "Bio 13", "Bio 14", 
-                                 "Bio 15", "Bio 16", "Bio 17", "Bio 18",
-                                 "Bio 19"), 
-                      "Minimo" = min_val,
-                      "Maximo" = max_val) 
+                                "Bio 6", "Bio 7", "Bio 8", "Bio 9", "Bio 10",
+                                "Bio 11", "Bio 12", "Bio 13", "Bio 14", 
+                                "Bio 15", "Bio 16", "Bio 17", "Bio 18",
+                                "Bio 19"), 
+                     "Minimo" = min_val,
+                     "Maximo" = max_val) 
 tab_df(tabla2, 
        alternate.rows = T) 
 
 ##Se genera un data frame donde se colocan las áreas de presencia para las 
 ##proyecciones por cada especie
 tabla3 <- data.frame("Especie" = especies_corr, 
-                        "Area presente (km2)" = area_presente,
-                        "Area futuro (km2)" = area_futuro)
+                     "Area presente (km2)" = area_presente,
+                     "Area futuro (km2)" = area_futuro)
 
 ##La tabla 3 es generada
 tab_df(tabla3,
