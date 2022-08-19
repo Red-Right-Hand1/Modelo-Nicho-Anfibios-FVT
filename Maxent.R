@@ -438,3 +438,22 @@ tabla2 <- data.frame("Especie" = especies_corr,
 tab_df(tabla2,
        alternate.rows = T,
        col.header = c("Especie", "Area presente (km2)", "Area futuro (km2)"))
+
+
+
+
+##Gráfica de barras representando la diferencia en áreas de distribución para 
+##presente respecto a futuro
+diferencias <- numeric()
+for(i in 1:nrow(tabla2)) {
+    resta <- tabla2[i,3]-tabla2[i,2]
+    diferencias[i] <- resta
+}
+
+dif_df <- data.frame("Numsp" = c(1:40),
+                     "Diferencias" = diferencias)
+
+dif_df %>% 
+    ggplot(aes(Numsp, Diferencias)) + 
+    geom_col() +
+    geom_text(aes(label = Numsp))
